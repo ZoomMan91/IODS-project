@@ -7,8 +7,7 @@ I would like to learn and start routine use of Markdown. I am using simple build
 to manipulate data during my working process, but functions and etc. not often used.
 First workshop was nice, same as guidelines how to install soft. I could not solve issue with my Valti computer, so I am using home MAC.
 Could Markdown actually check spelling? Do you know?
-My GitHub is 
-https://github.com/ZoomMan91/IODS-project
+My GitHub is https://github.com/ZoomMan91/IODS-project
 
 ```{r}
 # This is a so-called "R chunk" where you can write R code.
