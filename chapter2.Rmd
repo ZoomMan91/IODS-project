@@ -1,13 +1,97 @@
-# Insert chapter 2 title here
-
-*Describe the work you have done this week and summarize your learning.*
-
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
-
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+# Chapter 2. Regression and model validation.
+Today is:
 ```{r}
 date()
 ```
+#### Task 1. Read and explore the data.
+Reading data from local directory.
+```{r}
+students2014<-read.table(file="data/learning2014.txt",header=T, sep="\t")
+```
+Success!
+Let's check the data structure using **R** functions **dim** and **str**.
+```{r}
+dim(students2014)
+str(students2014)
+```
+The data has 7 variables from 166 students. 
+Variables **deep**, **strategic** and **surface** learning were created based on survey done in 2014. Method to calculate variables is described [here](https://www.mv.helsinki.fi/home/kvehkala/JYTmooc/JYTOPKYS2-meta.txt). Rest variables are __gender__, __Age__, global __Attitude__ towards statistics, and final exam __Points__. 
 
-Here we go again...
+#### Task 2. Graphcal overview of the data.
+Inbuild **R** function **plot** quite ugly. Therefore I would use [ggplot2](https://ggplot2.tidyverse.org/reference/ggplot.html) as much elegant way to overview the data.
+
+Let's access ggplot package first.
+```{r}
+library(ggplot2)
+```
+[GGally](https://ggobi.github.io/ggally/) package will be useful also.
+```{r}
+library(GGally)
+```
+Now let's create pairwise plot presenting relationships among variables.
+
+```{r}
+ggpairs(students2014, mapping = aes(col=gender,alpha=0.3), lower = list(combo = wrap("facethist", bins = 20)),upper = list(continuous = wrap("cor", size = 2.5)))
+```
+
+summary of the data
+```{r}
+summary(students2014)
+```
+Number of Female students in the data was larger then Males. The mean students age was 25.51 and the oldest student - 55 years old. Worth to check standard deviation.
+```{r}
+sd(students2014$Age)
+```
+The maximum earned exam point was 33, all student's average was 22.72. 
+According to ggpairs plot, most of the variables have normal distribution. The students attitude highly correlated with Exam points. No dependency was found between points and gender or age.  
+The negative correlation with exam points was observed in deep and surf variables. In opposite strategic learning positively correlated with exam points. 
+Let's build linear model...
+
+#### Task 3. Linear model.
+
+Explanatory variables I choose in a first run were attitude, deep, strategic and surface leanings.
+
+The model had look:
+```{r}
+model=lm(Points~Attitude+stra+deep+surf, students2014)
+summary(model)
+```
+Only Attitude here pass significance test in this model.
+The value 1.34e-08 *** in Pr(>|t|) column. 
+
+I have tried different models and find out that only Attitude has a significant relationship with exam points.  
+
+Perfect model is:
+
+```{r}
+perfect_model<-lm(Points~Attitude, students2014)
+summary(perfect_model)
+```
+#### Task 4. Explain the summary.
+Residuals are not symmetrically distributed.
+Alpha parameter is 11.63
+Effect of attitude on examine point is 0.352 with standard error 0.056. P test was 4^10-9, which shows significant relationship between target and explanatory variables.
+Roughly 19% examine Points variance was explained by Attitude variable, according to R2.
+
+#### Task 5. Diagnostic plots.
+Let's create diagnostic plots.
+```{r}
+plot(perfect_model,which=c(1,2,5))
+```
+
+Scatter plot of Residual vs Fitted values presenting random spread of points. 
+This means that variance has constant variance. No abnormall pattern was detected.
+
+Normality Q-Q plot presenting distribution of model errors. 
+Slight deviation is seen at the beginning and the end of the line.
+But generally speaking errors are normally distributed as they following line.
+
+Residuals vs Leverage plot showing absence of outspending observations in the linear model.
+
+All three plots are supporting model linearity assumption and normal distribution of errors.
+

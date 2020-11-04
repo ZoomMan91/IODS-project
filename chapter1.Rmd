@@ -1,5 +1,5 @@
 
-# About the project
+# Chapter 1. About the project.
 
 
 I have high expectations for this course. I want to learn data stat and visualization tools.
