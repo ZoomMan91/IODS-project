@@ -1,0 +1,137 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+# Chapter 3. Logistic regression
+Today is:
+```{r, echo=F}
+date()
+library(tidyr); library(dplyr); library(ggplot2)
+```
+#### Task 1. If you see this, hence task 1 is done.
+#### Task 2. Read and explore the data.
+I made my own data set, but mess provided by course organizers made me fill uncomfortable to use it. 
+I did not get clear answer [here](https://mooc.helsinki.fi/mod/forum/discuss.php?d=21108#p50025), so I will use provided by Reijo Sund data code. At least points are not interesting for me anymore. Feel free to cut them down =D
+
+Reading the data. 
+```{r}
+alc <- read.csv("https://github.com/rsund/IODS-project/raw/master/data/alc.csv")
+```
+The data derived from [public UCI repository](https://archive.ics.uci.edu/ml/datasets/Student+Performance).
+The data approach student achievement in secondary education measured in two Portuguese schools. Students performance was measured in to classes: Portuguese language and Math. Additional to personal information and Grades data has information about alcohol consumption of students.
+Data has no personal data and was merged using set of columns. Duplicated "unique" columns were deleted.
+
+Data dimension:
+```{r,echo=F}
+dim(alc)
+```
+
+i.e. 370 students 31 variables.
+Let's see the head of the data.
+```{r,echo=F}
+head(alc)
+```
+#### Task 3. Choose and hypothesize variables.
+
+From variables above I will choose: 1) famrel 2) activities 3) address 4) higher
+Let's put ideas on the paperer now.
+**1)famrel** - quality of family relationships. 
+This is trivial and common to blame family. 
+So why not to do as STM wants. We always assume that bad climate could cause problems with alcohol and drugs.
+But, I don't think bad family climate has negative impact.
+**2)activities** - extra-curricular activities.
+I suppose that busy or interested person has less time and willing to consume alcohol.
+At least no time to be drunk. Thus, less consumption. Need to check.
+**3)address** - type of home address.
+The stereotype will be that people from rural area drinking more. 
+I think oposite youngsters in urban area have more ability to get and drink alcohol.
+Let's check that out.
+**4)higher** - wants to take higher education
+This is obvious. Person interested in self-development potentially has less time and willing to drink.
+
+#### Task 4. Explore the data.
+```{r}
+choosen<-c("famrel","activities","address","higher","high_use","alc_use")
+my_alc<-select(alc,(one_of(choosen)))
+my_alc %>% group_by(famrel,high_use) %>% summarise(count = n())
+```
+Most of students are from families with good (4) and perfect (5) relationships. Percent of drinkers is higher in good familiear compare to perfect ones. Close to equal in families with rating 2 and 3.
+
+```{r}
+my_alc %>% group_by(address,high_use) %>% summarise(count = n())
+```
+I would rather say that percent of student in rural area (38%) is higher than in Urban (28%).
+
+
+```{r}
+my_alc %>% group_by(activities,high_use) %>% summarise(count = n())
+```
+Looks like same amount of students consuming a lot of alcohol in no and yes cases. In other words activities has no impact.
+
+```{r}
+my_alc %>% group_by(higher,high_use) %>% summarise(count = n())
+```
+Most of the students are have attempt to get higher degree. Also looks like in NO option equal number of students are with high and low consumption. And ~45% in YES option.
+
+Let's see the distribution (bar) plots.
+
+```{r}
+gather(my_alc) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free")+geom_bar()
+
+```
+
+#### Task 5. LOGistic regression.
+First let's fit logistic regression model and print summary.
+```{r}
+model<- glm(high_use ~ address+activities+ famrel+higher-1, data = my_alc, family = "binomial")
+summary(model)
+```
+I added -1 to see effect of Rural address instead of Intercept. From model we could see that Rural address has statistical relationship with alcohol consumption. Both Rural and Urban areas has positive coefficient, but it is smaller in Urban area.
+Family relationship and want to have higher education variable's also have statistical link and negative coefficient.
+
+I don't understand why I could not see activitiesno and higherno variables in table. But, if one would crate model with activities only, he/she well get sudden significance which was not the case before. I can show:
+
+```{r}
+idiotic_model<-glm(formula = high_use ~ activities - 1, family = "binomial", data = my_alc)
+summary(idiotic_model)
+```
+Make odds ratio.
+
+```{r}
+OR <- coef(model) %>% exp
+CI<-confint(model)%>%exp
+cbind(OR, CI)
+```
+
+I will read this [material](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5253299/), but not yet. Course information is limited and I did not get how to interpret table above. 
+
+#### Task 6. Prediction.
+Let's fit the prediction model similar to presented in DataCamp
+```{r}
+probabilities <- predict(model, type = "response")
+my_alc <- mutate(my_alc, probability = probabilities)
+my_alc <- mutate(my_alc, prediction = (probability > 0.5))
+table(high_use = my_alc$high_use, prediction = my_alc$prediction)
+g3 <- ggplot(my_alc, aes(x = probability, y = high_use,col=prediction))
+g3+geom_point()
+
+```
+```{r}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+loss_func(class = my_alc$high_use, prob = my_alc$probability)
+```
+
+
+Reliability of model prediction is 28.9%
+
+I will not perform task 7 and 8, just will say that we actively using modified cross-validation while choosing model to predict breeding values of farm animals in our customer projects. It is working and needed.
+
+
+
+
+
