@@ -1,0 +1,145 @@
+# Chapter 4. Clustering and classification.
+Today is:
+```{r, echo=F}
+date()
+library(tidyr); library(dplyr); library(ggplot2); library(corrplot);library(GGally)
+```
+#### Task 1. Create chapter4.Rmd => Done!
+#### Task 2. Load Boston data.
+Way to read data same as in DataCamp. 
+```{r}
+library(MASS)
+data("Boston")
+```
+Boston data is public data from MASS package including various data sets. Data was originally presented in 1978.
+The Boston Housing Dataset consists of price of houses in various places in Boston. Alongside with price, the dataset also provide information such as Crime (CRIM), areas of non-retail business in the town (INDUS), the age of people who own the house (AGE). Detailed information and links to original publications are presented [here](https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/Boston.html).
+
+Let's check structure and dimensions.
+```{r}
+dim(Boston)
+str(Boston)
+```
+So, data has 506 observations and 14 variables. Most of the variables are numerical, except dummy variable chas and rad variable - index of accessibility to radial highways. 
+
+#### Task 3. Graphical overvie of the data.
+Let's do graphical overview of the data. I tryed ggpairs but too much data. Than let's use example from DataCamp.
+Correlation using cycles.
+
+```{r}
+cor_matrix<-cor(Boston)
+corrplot(cor_matrix, method="circle")
+```
+The larger and darker blue circle the larger positive correlation between variables. For example high correlation is observed between rad and tax in other words transport accessibility correlate with property price highly.Negative correlation marked by red circles. The highest negative correlations seen between lstat and medv i.e. the lower status population the cheaper is propety. Negative correlations also observed between weighted mean of distances to five Boston employment centers and several variables (nitrogen oxides, acres of non-retail business, and owner=occupied building built before 1940). Thus, more distance - less NOx, more distance - less acres of non-retail business (what ever it mean...), and more distance less proportion of "old" buildings.
+
+Now, let's print out summary.
+```{r}
+summary(Boston)
+```
+The black variable looking bit odd. Minimum value is 0.32, but mean like maximum over 350. Also different variables has different range. Let's scale them.
+#### Task 4. Standardize and scale data.
+Data is numerical, so let's scale using **scale()** function. And see summary.
+```{r}
+bo_sc<-scale(Boston)
+bo_sc<-as.data.frame(bo_sc)
+summary(bo_sc)
+```
+
+Ok. Now they are looking with same range. Continue with the task.
+Create variable crime. You know...
+```{r}
+bins <- quantile(bo_sc$crim)
+crime <- cut(bo_sc$crim, breaks = bins, include.lowest = TRUE)
+bo_sc <- dplyr::select(bo_sc, -crim)
+bo_sc <- data.frame(bo_sc, crime)
+```
+Print out head.
+```{r}
+head(bo_sc)
+```
+Look's good.
+
+Now creating test and training set.
+And will print heads.
+```{r}
+n_rows<-length(bo_sc$zn)
+ind<-sample(n_rows, size=n_rows*0.8)
+train=bo_sc[ind,]
+test=bo_sc[-ind,]
+print("test")
+head(test)
+print("train")
+head(train)
+```
+
+#### Task 5. LDA
+
+Fitting model crime against all.
+
+```{r}
+lda.fit<-lda(crime~.,data=train)
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.5, color = "red", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+classes <- as.numeric(train$crime)
+
+plot(lda.fit,dimen=2,col=classes,pch=classes)
+lda.arrows(lda.fit, myscale = 1)
+```
+
+
+#### Task 6. Remove and predict.
+I will take crime variable from test to correct_crime. And remove crime variable from test data.
+```{r}
+correct_crime <-test$crime
+test <- dplyr::select(test, -crime)
+head(test)
+```
+Looks OK.
+Now let's predict and tabulate.
+```{r}
+lda.pred <- predict(lda.fit, newdata =test)
+table(correct=correct_crime,predicted=lda.pred$class)
+```
+
+I would say that prediction is pretty robust. 76 out of 102 (74.5%) was predicted correctly. Hence, error is 25%.
+What else to say?
+
+#### Task 7. Reload and etc.
+Reload data and calculate euclidian and manhattan distances.
+```{R}
+data("Boston")
+sc_data2<-scale(Boston)
+dist_eu<-dist(sc_data2)
+summary(dist_eu)
+dist_man <- dist(sc_data2, method = 'manhattan')
+summary(dist_man)
+```
+**Clustering.**
+
+2 clusters.
+```{r}
+km <-kmeans(sc_data2, centers = 2)
+pairs(sc_data2, col = km$cluster)
+```
+
+3 clusters.
+```{r}
+km <-kmeans(sc_data2, centers = 3)
+pairs(sc_data2, col = km$cluster)
+```
+
+4 clusters.
+```{r}
+km <-kmeans(sc_data2, centers = 4)
+pairs(sc_data2, col = km$cluster)
+```
+
+Dear reviewer, if you could see and understand anything on this plots, you warmly welcome to give comments. 
+I honestly could not see or understand presented pairs.
+
+No Bonus.
