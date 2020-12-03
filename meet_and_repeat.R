@@ -47,13 +47,6 @@ glimpse(RATSL)
 #wide data
 head(BPRS)
 str(BPRS)
-library(ggplot2)
-ggplot(BPRSL, aes(x = week, y = bprs, linetype = subject)) +
-  geom_line() +
-  scale_linetype_manual(values = rep(1:10, times=4)) +
-  facet_grid(. ~ treatment, labeller = label_both) +
-  theme(legend.position = "none") + 
-  scale_y_continuous(limits = c(min(BPRSL$bprs), max(BPRSL$bprs)))
 #long data
 head(BPRSL)
 summary(BPRSL)
@@ -66,8 +59,8 @@ str(RATSL)
 summary(RATSL)
 #Pretty similar idea was used in Long format of Rats Body Weight data set. This somehow similar to what is used in Animal Evaluations. 
 #For example in beef cattle. Consecutive observations (body weight measurements)
-
-
+write.table(RATSL,file="data/RATSL.txt",row.names = F,col.names = T,quote = F)
+write.table(BPRSL,file="data/BPRSL.txt",row.names = F,col.names = T,quote = F)
 
 
 

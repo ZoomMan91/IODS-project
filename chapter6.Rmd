@@ -1,0 +1,269 @@
+# Chapter 6. Analysis of longitudial data.
+Today is:
+```{r, echo=F}
+date()
+library(tidyr); library(dplyr); library(ggplot2); library(corrplot);library(GGally);library(tidyverse);library(rstatix);library(lme4)
+```
+#### Task 1. Chapter 8 analyses for RATS data.
+Let's start strait from long format data. Way to create that could be seen in [here](https://github.com/ZoomMan91/IODS-project/blob/master/meet_and_repeat.R).
+So, read the RATSL data.
+```{r}
+RATSL<-read.table(file="data/RATSL.txt",header=T)
+RATSL$ID <- factor(RATSL$ID)
+RATSL$Group <- factor(RATSL$Group)
+head(RATSL)
+str(RATSL)
+table(RATSL$ID)
+summary(RATSL)
+```
+
+The data was collected during nutrition studies on rats performed by Crower and Hand (1990). Group in the data denotes for diet used to feed animals. BW (body weight) was 11 times repeatedly measured in grams from each rat. Exact days of measurement were:
+```{r,echo=FALSE}
+print(unique(RATSL$time))
+```
+Number of rats:
+```{r,echo=FALSE}
+print(length(unique(RATSL$ID)))
+```
+
+Graphical display of the data.
+```{r}
+ggplot(RATSL, aes(x = time, y = BW, group = ID)) +
+  geom_line(aes(linetype = Group)) +
+  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 10)) +
+  scale_y_continuous(name = "Weight (grams)") +
+  theme(legend.position = "top")
+```
+
+In group 2 one rat had higher starting Body Weight and outstanding observations along the studies. Oppositely two animals in diet one and three respectively had starting weight lower than majority of animals within a group.
+One could deal with difference on the plot by standardizing records. So, only "progress" will be seen instead of real values.
+
+Performing standardization and plotting again.
+```{r}
+RATSS <- RATSL %>%
+  group_by(time) %>%
+  mutate(stBW =(BW-mean(BW))/sd(BW)) %>%
+  ungroup()
+glimpse(RATSS)
+ggplot(RATSS, aes(x = time, y = stBW, group = ID)) +
+  geom_line(aes(linetype = Group)) +
+  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 10)) +
+  scale_y_continuous(name = "Weight (grams)") +
+  theme(legend.position = "top")
+
+```
+I would say outliers are still the same.
+Let's construct mean profiles and boxplots.Number of days (measurement days).
+
+```{r}
+n <- RATSL$time %>% unique() %>% length()
+n
+```
+To construct mean profiles first one need to create summary data by group and day. Let's do that and print data sammary.
+```{r}
+RATSS <- RATSL %>%
+    group_by(Group, time) %>%
+  summarise( mean =BW, se = BW ) %>%
+  ungroup()
+glimpse(RATSS)
+```
+
+Now construct the plot.
+```{r}
+ggplot(RATSS, aes(x = time, y = mean, linetype = Group, shape = Group)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1,2,3)) +
+  geom_point(size=1) +
+  scale_shape_manual(values = c(1,2,3)) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se, linetype="1"), width=0.3) +
+  theme(legend.position = c(0.9,0.14)) +
+  scale_y_continuous(name = "mean(BodyWeight) +/- se(BodyWeight)")+
+  scale_x_continuous(name = "Day")
+
+```
+
+Looks ugly. 
+Let's do box plots instead. But, first we will take day 1 out as that measurement was done before special diet.
+
+```{r}
+RATSS1 <- RATSL %>%
+  filter(time > 1) %>%
+  group_by(Group, ID) %>%
+  summarise( mean=mean(BW) ) %>%
+  ungroup()
+ggplot(RATSS1, aes(x = Group, y = mean)) +
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom = "point", shape=22, size=4, fill = "black") +
+  scale_y_continuous(name = "mean(BW), day 1 to 64")+
+  theme(legend.position = c(0.9,0.14))
+```
+
+Now it's look nice. One outlier per each group. The largest variation seen in the second diet. Let's filter outliers and re-do plotting.
+
+```{r}
+RATSS1f<-RATSS1 %>% filter((RATSS1$Group ==1 & RATSS1$mean>240 ) | (RATSS1$Group ==2 & RATSS1$mean<500) |(RATSS1$Group ==3 & RATSS1$mean>500))
+summary(RATSS1f$mean)
+ggplot(RATSS1f, aes(x = Group, y = mean)) +
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom = "point", shape=22, size=4, fill = "black") +
+  scale_y_continuous(name = "mean(BW), day 1 to 64")+
+  theme(legend.position = c(0.9,0.14))
+
+```
+
+Now box-plots looks nice. After removing outliers we could see that mean of first diet is clearly lower then second and third. The highest is in the group three. Close variations seen in animals from first and second diets. Due to removal of rats observations from second group, previously detected variation was reduced.
+
+According to the Book next we suppose to perform *t*-test. This will helps us to see difference between diets more precisely.
+Data has 3 groups, thus simple t.test could not be used in single run. Or I could not find good solution.
+We could check p-values from paired *t*-test straight using **pairwise_t_test function**. But, than *t*-test values are not shown.
+Google search result on complicated functions to extract confidence intervals and *t-tests* from **pairwise_t_test**.
+P-values are:
+```{r}
+RATSS1f %>%  pairwise_t_test(mean ~ Group,paired=F)
+
+```
+To see all needed variables I will perform pairwise test manually.
+Group 1 and 2:
+```{r}
+t.test(mean ~ Group, data = subset(RATSS1f,RATSS1f$Group==1 | RATSS1f$Group==2) , var.equal = TRUE)
+```
+Group 1 and 3:
+```{r}
+t.test(mean ~ Group, data = subset(RATSS1f,RATSS1f$Group==1 | RATSS1f$Group==3) , var.equal = TRUE)
+```
+Group 2 and 3:
+```{r}
+t.test(mean ~ Group, data = subset(RATSS1f,RATSS1f$Group==2 | RATSS1f$Group==3) , var.equal = TRUE)
+```
+
+Similarly to box plots t-test pointing lowest difference between group 2 and 3, highest between group 1 and 3, next 2 and 3.
+Next we suppose to perform ANOVA test (Analysis of Variance).
+First return measurement results from day 1 as basis for comparison (baseline). Baseline should be taken from wide format. Let's read it beforehand.
+```{r}
+RATS<-read.table(file="data/RATS.txt", header=T)
+RATSS1f_n <- RATSS1 %>%
+  mutate(baseline = RATS$WD1)
+str(RATSS1f_n)
+```
+Now perform ANOVA.
+```{r}
+RATS_model <- lm(mean ~ baseline+ Group, data = RATSS1f_n)
+anova_RATS<-aov(RATS_model)
+summary(anova_RATS)
+coefficients(anova_RATS)
+```
+
+P-value passed 0.05 level presenting fair significance. I would rather say that no difference could be seen between diets. All difference between groups explained by rats weight difference at the day 1.
+
+#### Task 2. Chapter 9 analyses for BPRS data.
+
+Let's read wide and long data from BPRS studies. Way to create both was presented [here](https://github.com/ZoomMan91/IODS-project/blob/master/meet_and_repeat.R).
+```{r}
+BPRS<-read.table(file="data/BPRS.txt", header=T)
+BPRSL<-read.table(file="data/BPRSL.txt", header=T)
+```
+Check the wide data.
+```{r}
+str(BPRS)
+glimpse(BPRS)
+```
+The data was collected in studies done by Davis (2002) and presenting consecutive records done during rpsychiatric treatment on 40 male individuals. Brief psychiatric rating scale was recorded repeatedly in 9 weeks.
+Is numbers of individuals per treatment method are equal?
+```{r,echo=FALSE}
+length(unique(BPRS$subject))
+```
+Correct!
+ 
+Number of treatments used:
+```{r,echo=FALSE}
+length(unique(BPRS$treatment))
+```
+ 
+Fast look on long format data and dimension, converting of treatment and subject variables to be factors.
+```{r}
+glimpse(BPRSL)
+dim(BPRSL)
+BPRSL$subject<- factor(BPRSL$subject)
+BPRSL$treatment <- factor(BPRSL$treatment)
+```
+Let's start analyses with plotting the data.
+ 
+```{r}
+library(ggplot2)
+gg1<-ggplot(BPRSL, aes(x = week, y = bprs, linetype = subject)) +
+  geom_line() +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ treatment, labeller = label_both) +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(min(BPRSL$bprs), max(BPRSL$bprs)))
+gg1
+```
+ 
+Both treatment methods seems to show decrease in bprs (psychiatric scale) by the end of the treatment.For me first method looks much  promising then second one. Same time individuals with high starting values has the highest values even by the end of the treatment.
+But, we almost data scientists and should not trust eyes. Let's use more reliable methods to find difference.
+ 
+We expected to construct multiple linear regression model ignoring fact of repeated records.
+```{r}
+BPRS_reg <- lm(bprs ~ week + treatment, data = BPRSL)
+summary(BPRS_reg)
+```
+ 
+From linear regression could be seen that first treatment and week are significantly related with bprs.
+It is not a case for the first model. 
+
+Next step is to fit random intercept model with week and treatment method as explanatory variables. 
+```{r}
+BPRS_ref <- lmer(bprs ~ week + treatment + (1 | subject), data = BPRSL, REML = FALSE)
+summary(BPRS_ref)
+```
+Estimated variance (and SD) of subjects is relevantly low 47.41 (6.885). This could be interpreted as low variation in the intercepts. 
+Estimated regression parameters are same as in model before. Standard errors are lower for second treatment and week, but higher for first treatment.
+
+Next proposed is to fit random intercept and random slope model.This model will allow variables to have different slope.
+```{r}
+library(lme4)
+BPRS_ref1 <- lmer(bprs ~ week + treatment + (week | subject), data = BPRSL, REML = FALSE)
+summary(BPRS_ref1)
+```
+ 
+Fitting Anova with both models.
+```{r}
+anova(BPRS_ref1, BPRS_ref)
+```
+Significant p value (0.026) was seen for the Random Intercept model. This mean that model fit data better compare to intercept model.
+Another approach is to fit random intercept model with random slope and interaction between used treatment and week.
+```{r}
+BPRS_ref2 <- lmer(bprs ~ week * treatment + (week | subject), data = BPRSL, REML = FALSE)
+summary(BPRS_ref2)
+```
+Same, let's fit anova with new random intercept models.
+```{r}
+anova(BPRS_ref2, BPRS_ref1)
+```
+New fitted model slightly better then old one. So let's use it to create fitted values.
+Creating vector of fitted values. 
+```{r}
+Fitted <- fitted(BPRS_ref2)
+
+# Create a new column fitted to RATSL
+BPRSL$fitted<-Fitted
+head(BPRSL)
+BPRSL$fitted<-as.integer(BPRSL$fitted)
+```
+ 
+Plotting fitted values. Note first plot was already shown before.
+```{r, figures-side, fig.show="hold", out.width="50%"}
+par(mar = c(4, 4, .1, .1))
+gg1
+gg2<-ggplot(BPRSL, aes(x = week, y = fitted, linetype = subject)) +
+  geom_line() +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ treatment, labeller = label_both) +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(min(BPRSL$fitted), max(BPRSL$fitted)))
+gg2
+```
+Based on fitted values, I would say model with interaction quite well fitting data.
+
+
+
