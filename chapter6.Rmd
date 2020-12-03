@@ -265,5 +265,7 @@ gg2
 ```
 Based on fitted values, I would say model with interaction quite well fitting data.
 
+**Have a nice Christmas and Happy New Year!**
+
 
 
